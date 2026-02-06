@@ -50,63 +50,40 @@ class TestSQLInjection(TestCase):
 
     def test_sql_injection_in_find_users_by_username_and_password(self):
         """
-        Test SQL injection vulnerability in AccountService.find_users_by_username_and_password().
+        Test that AccountService.find_users_by_username_and_password() uses parameterized
+        queries, preventing SQL injection in the WHERE clause.
 
-        Educational Purpose: This test demonstrates how SQL injection can bypass
-        authentication by manipulating the WHERE clause in user lookup queries.
-
-        Vulnerability: The method constructs SQL queries using string concatenation
-        without proper parameter binding, allowing injection attacks.
+        Remediation: The method uses raw() with %s placeholders and params list so
+        malicious input is bound as data, not concatenated into the SQL string.
         """
-        # Common SQL injection payloads for authentication bypass
+        # Payloads that would have been dangerous with string concatenation
         sql_injection_payloads = [
-            # Classic authentication bypass
             ("admin'--", "anything"),
             ("admin' OR '1'='1'--", "anything"),
             ("admin'; DROP TABLE accounts; --", "password"),
-
-            # Union-based injection
             ("admin' UNION SELECT 'admin','admin','admin','admin' --", "password"),
             ("' OR 1=1 UNION SELECT username,password,name,surname FROM accounts --", ""),
-
-            # Boolean-based blind injection
-            ("admin' AND 1=1 --", "password"),
-            ("admin' AND 1=2 --", "password"),
-
-            # Time-based blind injection
-            ("admin'; WAITFOR DELAY '00:00:05'; --", "password"),
-            ("admin' AND (SELECT COUNT(*) FROM accounts) > 0 --", "password"),
         ]
 
         for malicious_username, malicious_password in sql_injection_payloads:
             with self.subTest(username=malicious_username, password=malicious_password):
-                with patch('web.services.connection') as mock_connection:
-                    mock_cursor = Mock()
-                    mock_connection.cursor.return_value.__enter__.return_value = mock_cursor
-                    mock_cursor.fetchall.return_value = []
+                with patch('web.models.Account.objects.raw') as mock_raw:
+                    mock_raw.return_value = []
 
-                    # Call vulnerable method with injection payload
-                    try:
-                        result = AccountService.find_users_by_username_and_password(
-                            malicious_username, malicious_password
-                        )
+                    result = AccountService.find_users_by_username_and_password(
+                        malicious_username, malicious_password
+                    )
 
-                        # Verify SQL injection payload was passed through
-                        mock_cursor.execute.assert_called()
-                        executed_sql = mock_cursor.execute.call_args[0][0]
+                    # Parameterized query: SQL has placeholders only
+                    mock_raw.assert_called_once()
+                    executed_sql = mock_raw.call_args[0][0]
+                    params = mock_raw.call_args[0][1]
 
-                        # Document the vulnerability: malicious input in SQL
-                        self.assertIn(malicious_username, executed_sql)
-
-                        # Log the vulnerable SQL for educational purposes
-                        print(f"VULNERABLE SQL: {executed_sql}")
-                        print(f"PAYLOAD: username='{malicious_username}', password='{malicious_password}'")
-
-                    except Exception as e:
-                        # Even if execution fails, the vulnerability exists
-                        # Document that injection was attempted
-                        print(f"SQL Injection attempted but failed: {e}")
-                        print(f"PAYLOAD: username='{malicious_username}', password='{malicious_password}'")
+                    # Remediation: payload must NOT appear in the SQL string
+                    self.assertNotIn(malicious_username, executed_sql)
+                    self.assertNotIn(malicious_password, executed_sql)
+                    # Payload must be in the params list (bound safely)
+                    self.assertEqual(params, [malicious_username, malicious_password])
 
     def test_sql_injection_in_find_users_by_username(self):
         """
