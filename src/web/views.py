@@ -3,6 +3,8 @@ import json
 import logging
 import os
 import pickle
+import shlex
+import subprocess
 from datetime import date
 from typing import Any
 
@@ -57,7 +59,20 @@ def get_file_checksum(data: bytes) -> str:
 
 
 def to_traces(string: str) -> str:
-    return str(os.system(string))
+    try:
+        args = shlex.split(string) if string.strip() else []
+        if not args:
+            return "-1"
+        result = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            shell=False,
+        )
+        return str(result.returncode)
+    except (ValueError, subprocess.TimeoutExpired, OSError):
+        return "-1"
 
 
 class LoginView(TemplateView):
