@@ -63,8 +63,8 @@ class AccountService(BaseBackend):
 
     @staticmethod
     def find_users_by_username(username: str) -> list[Account]:
-        sql = "select * from web_account where username='" + username + "'"
-        return Account.objects.raw(sql)
+        sql = "select * from web_account where username=%s"
+        return Account.objects.raw(sql, [username])
 
     @staticmethod
     def find_all_users() -> list[Account]:
