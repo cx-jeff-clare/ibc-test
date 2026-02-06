@@ -159,37 +159,37 @@ class TestAccountService(BaseUnitTestCase):
 
     @patch('web.models.Account.objects.raw')
     def test_find_users_by_username_and_password(self, mock_raw):
-        """Test find_users_by_username_and_password SQL injection vulnerability."""
+        """Test find_users_by_username_and_password uses parameterized query."""
         mock_accounts = [Mock(), Mock()]
         mock_raw.return_value = mock_accounts
 
         result = AccountService.find_users_by_username_and_password('testuser', 'testpass')
 
-        # Verify the vulnerable SQL query is constructed
-        expected_sql = "select * from web_account where username='testuser' AND password='testpass'"
-        mock_raw.assert_called_once_with(expected_sql)
+        # Verify parameterized query is used (no string concatenation)
+        expected_sql = "select * from web_account where username=%s AND password=%s"
+        mock_raw.assert_called_once_with(expected_sql, ['testuser', 'testpass'])
         self.assertEqual(result, mock_accounts)
 
     @patch('web.models.Account.objects.raw')
     def test_find_users_by_username_and_password_sql_injection(self, mock_raw):
-        """Test SQL injection vulnerability in find_users_by_username_and_password."""
+        """Test find_users_by_username_and_password uses parameterized query (injection prevented)."""
         mock_accounts = [Mock()]
         mock_raw.return_value = mock_accounts
 
-        # Test with SQL injection payload
+        # Test with SQL injection payload - should be passed as param, not concatenated
         malicious_username = "admin'; DROP TABLE web_account; --"
         malicious_password = "anything"
 
         result = AccountService.find_users_by_username_and_password(malicious_username, malicious_password)
 
-        # The vulnerability allows the malicious SQL to be constructed
-        expected_sql = f"select * from web_account where username='{malicious_username}' AND password='{malicious_password}'"
-        mock_raw.assert_called_once_with(expected_sql)
+        # Parameterized query: SQL string has placeholders only; payload in params
+        expected_sql = "select * from web_account where username=%s AND password=%s"
+        mock_raw.assert_called_once_with(expected_sql, [malicious_username, malicious_password])
 
-        # Verify the injection payload is preserved (educational vulnerability)
+        # Verify injection payload is NOT in the SQL string (remediation)
         called_sql = mock_raw.call_args[0][0]
-        self.assertIn("DROP TABLE", called_sql)
-        self.assertIn("--", called_sql)
+        self.assertNotIn("DROP TABLE", called_sql)
+        self.assertNotIn("--", called_sql)
 
     @patch('web.models.Account.objects.raw')
     def test_find_users_by_username(self, mock_raw):

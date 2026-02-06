@@ -58,8 +58,8 @@ class AccountService(BaseBackend):
 
     @staticmethod
     def find_users_by_username_and_password(username: str, password: str) -> list[Account]:
-        sql = "select * from web_account where username='" + username + "' AND password='" + password + "'"
-        return Account.objects.raw(sql)
+        sql = "select * from web_account where username=%s AND password=%s"
+        return Account.objects.raw(sql, [username, password])
 
     @staticmethod
     def find_users_by_username(username: str) -> list[Account]:
