@@ -75,8 +75,8 @@ class AccountService(BaseBackend):
 class CashAccountService:
     @staticmethod
     def find_cash_accounts_by_username(username: str) -> list[CashAccount]:
-        sql = "select * from web_cashaccount  where username='" + username + "'"
-        return CashAccount.objects.raw(sql)
+        sql = "select * from web_cashaccount where username=%s"
+        return CashAccount.objects.raw(sql, [username])
 
     @staticmethod
     def get_from_account_actual_amount(account: str) -> float:
