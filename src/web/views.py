@@ -298,7 +298,7 @@ class TransferView(TemplateView):
         transfer_form = TransferForm(request.POST)
         transfer_form.is_valid()  # ensure model is bound
         transfer = transfer_form.instance
-        to_traces(f"echo {transfer.fromAccount} to account {transfer.toAccount} accountType:{account_type}>traces.txt")
+        logger.info("Transfer from %s to account %s accountType:%s", transfer.fromAccount, transfer.toAccount, account_type)
         if account_type == "Personal":
             return self.transfer_check(request, transfer)
         return self.transfer_confirmation(request, transfer, account_type)
