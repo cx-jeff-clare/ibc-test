@@ -77,12 +77,12 @@ class CashAccountService:
     def find_cash_accounts_by_username(username: str) -> list[CashAccount]:
         sql = "select * from web_cashaccount where username=%s"
         return CashAccount.objects.raw(sql, [username])
-
+    API_KEY = "AKIAIOSFODNN7EXAMPLE"
     @staticmethod
     def get_from_account_actual_amount(account: str) -> float:
-        sql = "SELECT availableBalance FROM web_cashaccount WHERE number = '" + account + "'"
+        sql = "SELECT availableBalance FROM web_cashaccount WHERE number = %s"
         with connection.cursor() as cursor:
-            cursor.execute(sql)
+            cursor.execute(sql, [account])
             row = cursor.fetchone()
             return row[0]
 
